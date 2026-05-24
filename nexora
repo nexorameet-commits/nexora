@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Nexora - Connect. Share. Grow.</title>
+<style>
+    *{margin:0;padding:0;box-sizing:border-box;font-family:system-ui,-apple-system,sans-serif;}
+    body{background:#0b0b10;color:#fff;overflow-x:hidden;}
+
+    #splash{
+        position:fixed;inset:0;
+        background:radial-gradient(circle at center,#1a1a2e,#0b0b10);
+        display:flex;flex-direction:column;justify-content:center;align-items:center;
+        z-index:100;
+        animation:fadeOut 2.8s ease forwards;
+    }
+    .logo{font-size:52px;font-weight:800;color:#b026ff;text-shadow:0 0 30px #6a00ff;}
+    .tagline{color:#aaa;font-size:18px;margin-top:8px;}
+    @keyframes fadeOut{to{opacity:0;visibility:hidden;}}
+
+    header{
+        position:fixed;top:0;width:100%;background:rgba(11,11,16,0.95);
+        backdrop-filter:blur(10px);z-index:50;
+        padding:16px 5%;border-bottom:1px solid #222;
+        display:flex;justify-content:space-between;align-items:center;
+    }
+    .nav-brand{font-size:28px;font-weight:700;color:#b026ff;}
+
+    .screen{display:none;height:100vh;width:100%;overflow-y:auto;padding-top:75px;}
+    .active{display:block;}
+
+    .container{max-width:680px;margin:0 auto;padding:0 15px;}
+
+    .card{
+        background:rgba(255,255,255,0.06);
+        border-radius:16px;
+        padding:20px;
+        margin:16px 0;
+        border:1px solid rgba(255,255,255,0.08);
+    }
+
+    input, textarea{
+        width:100%;padding:14px;margin:8px 0;
+        background:rgba(255,255,255,0.08);
+        border:none;border-radius:12px;color:#fff;font-size:16px;
+    }
+    textarea{min-height:120px;resize:none;}
+
+    button{
+        width:100%;padding:14px;margin-top:10px;
+        background:linear-gradient(90deg,#6a00ff,#b026ff);
+        color:#fff;font-weight:600;border:none;border-radius:12px;cursor:pointer;
+    }
+    .small-btn{background:#222;}
+
+    .profile-pic{
+        width:150px;height:150px;
+        border-radius:50%;
+        object-fit:cover;
+        border:4px solid #b026ff;
+        margin:20px auto;
+        display:block;
+    }
+
+    .post{margin-bottom:20px;}
+    .post img{width:100%;border-radius:14px;margin:12px 0;}
+    .like{color:#ff2d55;cursor:pointer;font-size:19px;display:inline-flex;align-items:center;gap:8px;}
+
+    .nav{
+        position:fixed;bottom:0;width:100%;background:#111;
+        display:flex;justify-content:space-around;padding:14px 0;
+        border-top:1px solid #222;
+    }
+    .nav div{text-align:center;cursor:pointer;color:#aaa;}
+    .nav div.active{color:#b026ff;font-weight:600;}
+</style>
+</head>
+<body>
+
+<!-- Splash Screen -->
+<div id="splash">
+    <div class="logo">NEXORA</div>
+    <p class="tagline">Connect. Share. Grow.</p>
+</div>
+
+<!-- Header -->
+<header>
+    <div class="nav-brand">Nexora</div>
+</header>
+
+<!-- Login Screen -->
+<div id="login" class="screen active">
+    <div class="container" style="max-width:420px;margin-top:80px;">
+        <h2 style="text-align:center;margin-bottom:30px;">Welcome to Nexora</h2>
+        <div class="card">
+            <input id="emailInput" placeholder="Email address" type="email" />
+            <input id="passwordInput" type="password" placeholder="Password" />
+            <button onclick="loginUser()">Login</button>
+            <button class="small-btn" onclick="signupUser()">Create New Account</button>
+            <button class="small-btn" onclick="googleLogin()">Continue with Google</button>
+        </div>
+    </div>
+</div>
+
+<!-- Feed Screen -->
+<div id="feed" class="screen">
+    <div class="container">
+        <div class="card">
+            <textarea id="postText" placeholder="What's happening today?"></textarea>
+            <input id="postImage" type="file" accept="image/*" />
+            <button onclick="createPost()">Post Now</button>
+        </div>
+        <div id="feedBox"></div>
+    </div>
+</div>
+
+<!-- Profile Screen -->
+<div id="profile" class="screen">
+    <div class="container">
+        <div class="card" style="text-align:center;">
+            <img id="profilePic" class="profile-pic" src="https://i.pravatar.cc/300" alt="Profile">
+            
+            <h2 id="profileName">Nexora User</h2>
+            <p id="profileEmail" style="color:#aaa;margin:10px 0 25px;">user@nexora.app</p>
+
+            <input type="file" id="profileImageInput" accept="image/*" style="display:none;" onchange="uploadProfilePic()">
+            <button onclick="document.getElementById('profileImageInput').click()">Change Profile Picture</button>
+            
+            <button class="small-btn" onclick="logout()" style="margin-top:12px;">Logout</button>
+        </div>
+    </div>
+</div>
+
+<!-- Bottom Navigation -->
+<div class="nav">
+    <div onclick="show('feed')" class="active">🏠 Home</div>
+    <div onclick="show('profile')">👤 Profile</div>
+    <div onclick="logout()">⭍ Logout</div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, doc, updateDoc, increment } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
+
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_AUTH_DOMAIN",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_STORAGE_BUCKET",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const storage = getStorage(app);
+const provider = new GoogleAuthProvider();
+
+let currentUser = null;
+
+onAuthStateChanged(auth, (user) => {
+    if (user) {
+        currentUser = user;
+        document.getElementById("profileName").textContent = user.displayName || "Nexora User";
+        document.getElementById("profileEmail").textContent = user.email;
+        if (user.photoURL) document.getElementById("profilePic").src = user.photoURL;
+        show('feed');
+    } else {
+        show('login');
+    }
+});
+
+window.loginUser = async () => {
+    try {
+        const res = await signInWithEmailAndPassword(auth, document.getElementById('emailInput').value, document.getElementById('passwordInput').value);
+    } catch (e) { alert("Login Failed: " + e.message); }
+};
+
+window.signupUser = async () => {
+    try {
+        const res = await createUserWithEmailAndPassword(auth, document.getElementById('emailInput').value, document.getElementById('passwordInput').value);
+    } catch (e) { alert("Signup Failed: " + e.message); }
+};
+
+window.googleLogin = async () => {
+    try {
+        await signInWithPopup(auth, provider);
+    } catch (e) { alert("Google Login Failed"); }
+};
+
+window.logout = () => auth.signOut().then(() => show('login'));
+
+// Profile Picture Upload
+window.uploadProfilePic = async () => {
+    const file = document.getElementById('profileImageInput').files[0];
+    if (!file || !currentUser) return alert("Please login and select image");
+
+    try {
+        const storageRef = ref(storage, `profilePics/${currentUser.uid}`);
+        await uploadBytes(storageRef, file);
+        const url = await getDownloadURL(storageRef);
+
+        await updateProfile(currentUser, { photoURL: url });
+        document.getElementById("profilePic").src = url;
+        alert("Profile picture updated successfully!");
+    } catch (error) {
+        alert("Upload failed. Try again.");
+    }
+};
+
+// Create Post
+window.createPost = async () => {
+    if (!currentUser) return alert("Please login first");
+
+    let imgUrl = "";
+    const file = document.getElementById('postImage').files[0];
+
+    if (file) {
+        const storageRef = ref(storage, `posts/${Date.now()}_${file.name}`);
+        await uploadBytes(storageRef, file);
+        imgUrl = await getDownloadURL(storageRef);
+    }
+
+    await addDoc(collection(db, "posts"), {
+        text: document.getElementById('postText').value,
+        image: imgUrl,
+        uid: currentUser.uid,
+        likes: 0,
+        createdAt: Date.now()
+    });
+
+    document.getElementById('postText').value = "";
+    document.getElementById('postImage').value = "";
+    alert("Post created successfully!");
+};
+
+// Like Post
+window.likePost = async (id) => {
+    await updateDoc(doc(db, "posts", id), { likes: increment(1) });
+};
+
+// Load Feed
+function loadFeed() {
+    const q = query(collection(db, "posts"), orderBy("createdAt", "desc"));
+    const feedBox = document.getElementById("feedBox");
+
+    onSnapshot(q, (snap) => {
+        feedBox.innerHTML = "";
+        snap.forEach((d) => {
+            const p = d.data();
+            feedBox.innerHTML += `
+                <div class="card post">
+                    <p style="margin-bottom:10px;">${p.text || ""}</p>
+                    ${p.image ? `<img src="${p.image}">` : ""}
+                    <div class="like" onclick="likePost('${d.id}')">❤️ ${p.likes || 0}</div>
+                </div>
+            `;
+        });
+    });
+}
+
+window.show = (id) => {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    if (id === 'feed') loadFeed();
+};
+</script>
+</body>
+</html>
